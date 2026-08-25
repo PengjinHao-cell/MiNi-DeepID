@@ -13,6 +13,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
+import torchvision.transforms as T
+from torch.utils.data import Dataset
 
 from config import CONFIG
 
@@ -326,3 +329,63 @@ def _write_class_distribution(frame: pd.DataFrame, config) -> None:
     fig.tight_layout()
     fig.savefig(config.outputs_dir / "class_distribution.png", dpi=150)
     plt.close(fig)
+
+
+def build_train_transform(config=CONFIG):
+    """Training transform: grayscale, resize, random flip/affine, normalize.
+
+    Random augmentation is applied only to manifest rows whose split is ``train``.
+    """
+    return T.Compose(
+        [
+            T.Grayscale(num_output_channels=1),
+            T.Resize((config.image_size, config.image_size)),
+            T.RandomHorizontalFlip(p=config.horizontal_flip_probability),
+            T.RandomAffine(
+                degrees=config.rotation_degrees,
+                translate=(config.translation_fraction, config.translation_fraction),
+                scale=config.scale_range,
+            ),
+            T.ToTensor(),
+            T.Normalize(mean=[0.5], std=[0.5]),
+        ]
+    )
+
+
+def build_eval_transform(config=CONFIG):
+    """Evaluation transform: grayscale, resize, tensor, normalize (no augmentation)."""
+    return T.Compose(
+        [
+            T.Grayscale(num_output_channels=1),
+            T.Resize((config.image_size, config.image_size)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.5], std=[0.5]),
+        ]
+    )
+
+
+class LFWManifestDataset(Dataset):
+    """Read-only dataset that filters the frozen manifest by split.
+
+    Returns ``(image, model_label, source_index, image_path)`` and never mutates
+    the underlying manifest frame.
+    """
+
+    def __init__(self, manifest: pd.DataFrame, split: str, transform=None, root=None, config=CONFIG):
+        self.config = config
+        self.root = Path(root) if root is not None else config.project_root
+        self.frame = manifest[manifest["split"] == split].reset_index(drop=True)
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.frame)
+
+    def __getitem__(self, index: int):
+        row = self.frame.iloc[index]
+        path = self.root / row["image_path"]
+        from PIL import Image
+
+        with Image.open(path) as image:
+            if self.transform is not None:
+                image = self.transform(image)
+        return image, int(row["model_label"]), int(row["source_index"]), str(row["image_path"])

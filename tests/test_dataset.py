@@ -1,9 +1,13 @@
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from dataset import (
+    LFWManifestDataset,
     assert_splits_disjoint,
+    build_eval_transform,
+    build_train_transform,
     load_manifest,
     sample_and_split_indices,
     select_top_labels,
@@ -154,3 +158,49 @@ def test_validate_exported_images(tmp_path):
     not_gray = pd.DataFrame([{"image_path": "data/processed/X/3.png"}])
     with pytest.raises(ValueError):
         validate_exported_images(CONFIG, not_gray, project_root=tmp_path)
+
+
+def test_transforms_and_dataset(tmp_path):
+    from PIL import Image
+
+    from config import CONFIG
+
+    img_dir = tmp_path / "data" / "processed" / "X"
+    img_dir.mkdir(parents=True)
+    arr = np.random.randint(0, 256, (64, 64), dtype=np.uint8)
+    Image.fromarray(arr, mode="L").save(img_dir / "1.png")
+
+    # train transform returns finite float32 [1,64,64]
+    train_tf = build_train_transform(CONFIG)
+    out = train_tf(Image.open(img_dir / "1.png"))
+    assert isinstance(out, torch.Tensor)
+    assert out.dtype == torch.float32
+    assert out.shape == (1, 64, 64)
+    assert torch.isfinite(out).all()
+
+    # eval transform is deterministic and normalized to [-1, 1]
+    eval_tf = build_eval_transform(CONFIG)
+    a = eval_tf(Image.open(img_dir / "1.png"))
+    b = eval_tf(Image.open(img_dir / "1.png"))
+    assert torch.equal(a, b)
+    assert a.shape == (1, 64, 64)
+    assert float(a.min()) >= -1.0
+    assert float(a.max()) <= 1.0
+
+    # dataset returns (image, model_label, source_index, image_path)
+    frame = pd.DataFrame(
+        [
+            {
+                "model_label": 0,
+                "source_index": 1,
+                "split": "train",
+                "image_path": "data/processed/X/1.png",
+            }
+        ]
+    )
+    ds = LFWManifestDataset(frame, split="train", transform=eval_tf, root=tmp_path)
+    img, label, src, path = ds[0]
+    assert img.shape == (1, 64, 64)
+    assert label == 0
+    assert src == 1
+    assert path == "data/processed/X/1.png"

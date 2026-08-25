@@ -4,7 +4,7 @@
 
 > **An educational reproduction inspired by _Deep Learning Face Representation from Predicting 10,000 Classes_ (CVPR 2014), not a reproduction of the paper's reported 97.45% LFW verification benchmark.**
 
-[中文简介](#中文简介) · [Full Chinese Report](docs/Mini-DeepID完整实验报告.md) · [Wiki](../../wiki) · [Original Paper](https://openaccess.thecvf.com/content_cvpr_2014/html/Sun_Deep_Learning_Face_2014_CVPR_paper.html)
+ [Wiki](../../wiki) · [Original Paper](https://openaccess.thecvf.com/content_cvpr_2014/html/Sun_Deep_Learning_Face_2014_CVPR_paper.html)
 
 Mini-DeepID is a small, reproducible face-representation experiment built on LFW. It preserves three ideas from DeepID—identity-classification supervision, a compact 160-dimensional embedding, and complementary multi-scale features—while reducing the experiment to 10 identities and one lightweight CNN that can be trained on a consumer GPU.
 
@@ -91,8 +91,6 @@ python -m venv .venv
 
 Formal training is launched by the user from `run_in_pycharm.py`. After the protocol is frozen, `evaluate.py` performs the one-shot final test and refuses to run again when a receipt exists.
 
-See the [full Chinese experiment report](docs/Mini-DeepID完整实验报告.md) or [Wiki](../../wiki) for equations, class-wise metrics, limitations, and improvement plans.
-
 ## DeepID versus Mini-DeepID
 
 | | Original DeepID | Mini-DeepID |
@@ -132,12 +130,6 @@ Datasets, checkpoints, outputs, and virtual environments are excluded from Git. 
   year      = {2014}
 }
 ```
-
-## 中文简介
-
-Mini-DeepID 是一个在消费级 GPU 上完成的 DeepID 思想级教学复现。项目从 LFW 自动选择照片最多的 10 个身份，每人固定 50 张，使用不可变清单划分为 350 张训练、70 张验证和 80 张测试图像。模型采用四层卷积、Conv3/Conv4 多尺度融合、160 维特征层和十分类器，最终测试准确率为 **77.50%（62/80）**，Macro F1 为 **0.7758**。
-
-项目重点是完整经历“论文思想 → 数据协议 → 模型实现 → 健康检查 → 正式训练 → 一次性测试 → 结果分析”的过程。它不是原论文系统的完整复现，也不支持陌生人拒识。详细说明见[完整中文实验报告](docs/Mini-DeepID完整实验报告.md)。
 
 ## Ethics and intended use
 

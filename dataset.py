@@ -101,6 +101,35 @@ def validate_manifest(frame: pd.DataFrame, num_classes: int) -> None:
             raise ValueError(f"incorrect {split} split count")
 
 
+def assert_splits_disjoint(frame: pd.DataFrame) -> None:
+    """Raise if any source index appears in more than one split."""
+    by_split = {
+        split: set(frame.loc[frame["split"] == split, "source_index"])
+        for split in VALID_SPLITS
+    }
+    for left, right in (("train", "val"), ("train", "test"), ("val", "test")):
+        overlap = by_split[left] & by_split[right]
+        if overlap:
+            raise ValueError(
+                f"split overlap between {left} and {right}: {sorted(overlap)[:10]}"
+            )
+
+
+def load_manifest(config=CONFIG) -> pd.DataFrame:
+    """Read the frozen split manifest and validate it.
+
+    All later stages must load the split through this function and must never
+    call ``random_split`` or re-derive the split from raw data.
+    """
+    path = config.split_manifest_path
+    if not path.exists():
+        raise FileNotFoundError(f"frozen manifest not found: {path}")
+    frame = pd.read_csv(path)
+    validate_manifest(frame, config.num_classes)
+    assert_splits_disjoint(frame)
+    return frame
+
+
 def sanitize_identity_name(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9]+", "_", name.strip())
     return cleaned.strip("_") or "unknown"

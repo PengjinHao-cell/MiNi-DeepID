@@ -2,7 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dataset import select_top_labels, sample_and_split_indices, validate_manifest
+from dataset import (
+    assert_splits_disjoint,
+    load_manifest,
+    sample_and_split_indices,
+    select_top_labels,
+    validate_manifest,
+)
 
 
 def _synthetic_targets() -> np.ndarray:
@@ -87,3 +93,36 @@ def test_validate_manifest_rejects_wrong_split_count():
     frame.loc[idx, "split"] = "test"
     with pytest.raises(ValueError):
         validate_manifest(frame, num_classes=10)
+
+
+def test_assert_splits_disjoint_rejects_overlap():
+    targets = _synthetic_targets()
+    selected = select_top_labels(targets, num_classes=10, samples_per_class=50)
+    frame = pd.DataFrame(sample_and_split_indices(targets, selected, seed=42))
+    assert_splits_disjoint(frame)  # valid: no raise
+
+    # inject an overlap: move one val source_index into train
+    moved = int(frame.loc[frame["split"] == "val", "source_index"].iloc[0])
+    frame.loc[frame["source_index"] == moved, "split"] = "train"
+    # keep a duplicate row so the source index appears in both splits
+    dup = frame[frame["source_index"] == moved].iloc[[0]].copy()
+    dup["split"] = "val"
+    overlap = pd.concat([frame, dup], ignore_index=True)
+    with pytest.raises(ValueError):
+        assert_splits_disjoint(overlap)
+
+
+def test_load_manifest_reads_frozen_split():
+    frame = load_manifest()
+    assert len(frame) == 500
+    assert (frame["split"] == "train").sum() == 350
+    assert (frame["split"] == "val").sum() == 70
+    assert (frame["split"] == "test").sum() == 80
+    assert frame["model_label"].nunique() == 10
+
+    train_idx = set(frame.loc[frame["split"] == "train", "source_index"])
+    val_idx = set(frame.loc[frame["split"] == "val", "source_index"])
+    test_idx = set(frame.loc[frame["split"] == "test", "source_index"])
+    assert train_idx.isdisjoint(val_idx)
+    assert train_idx.isdisjoint(test_idx)
+    assert val_idx.isdisjoint(test_idx)

@@ -1,5 +1,7 @@
 # Mini-DeepID
 
+[![Project](https://img.shields.io/badge/GitHub-MiNi--DeepID-181717?logo=github&logoColor=white)](https://github.com/PengjinHao-cell/MiNi-DeepID) [![Profile](https://img.shields.io/badge/GitHub-PengjinHao--cell-181717?logo=github&logoColor=white)](https://github.com/PengjinHao-cell) [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![PyTorch](https://img.shields.io/badge/PyTorch-2.12-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/) [![CUDA](https://img.shields.io/badge/CUDA-13.0-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit) [![Paper](https://img.shields.io/badge/Paper-CVPR%202014-8A2BE2?logo=readthedocs&logoColor=white)](https://openaccess.thecvf.com/content_cvpr_2014/html/Sun_Deep_Learning_Face_2014_CVPR_paper.html)
+
 > **An educational reproduction inspired by _Deep Learning Face Representation from Predicting 10,000 Classes_ (CVPR 2014), not a reproduction of the paper's reported 97.45% LFW verification benchmark.**
 
 [中文简介](#中文简介) · [Full Chinese Report](docs/Mini-DeepID完整实验报告.md) · [Wiki](../../wiki) · [Original Paper](https://openaccess.thecvf.com/content_cvpr_2014/html/Sun_Deep_Learning_Face_2014_CVPR_paper.html)

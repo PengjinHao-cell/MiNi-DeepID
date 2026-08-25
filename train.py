@@ -23,6 +23,7 @@ from dataset import (
     load_identities,
     load_manifest,
 )
+from gate_status import record_gate
 from model import MiniDeepID
 from training import run_epoch, save_checkpoint_atomic, set_reproducible, write_history_json
 
@@ -159,6 +160,17 @@ def main() -> int:
     run_dir = CONFIG.outputs_dir / run_id
 
     result = train_model(CONFIG, max_epochs=args.epochs, run_dir=run_dir)
+    is_smoke = args.epochs is not None and args.epochs < CONFIG.max_epochs
+    record_gate(
+        "G9" if is_smoke else "G10",
+        "passed",
+        {
+            "best_epoch": result["best_epoch"],
+            "best_val_accuracy": result["best_val_accuracy"],
+            "epochs": len(result["history"]),
+        },
+        [f"outputs/{run_id}/history.json", "checkpoints/mini_deepid_best.pth"],
+    )
     print(
         f"MINI_DEEPID_TRAIN_OK best_epoch={result['best_epoch']} "
         f"best_val_accuracy={result['best_val_accuracy']:.4f} run_dir={run_id}"

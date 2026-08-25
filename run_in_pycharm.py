@@ -16,7 +16,7 @@ import torch
 
 from config import CONFIG
 from dataset import load_manifest
-from gate_status import list_passed_gates, require_gate_passed
+from gate_status import list_passed_gates, record_gate, require_gate_passed
 
 
 def _check_interpreter() -> None:
@@ -77,6 +77,16 @@ def main() -> int:
 
     print("PYCHARM_FORMAL_TRAIN_START")
     result = train_model(CONFIG, max_epochs=None, run_dir=run_dir)
+    record_gate(
+        "G10",
+        "passed",
+        {
+            "best_epoch": result["best_epoch"],
+            "best_val_accuracy": result["best_val_accuracy"],
+            "epochs": len(result["history"]),
+        },
+        [f"outputs/{run_id}/history.json", "checkpoints/mini_deepid_best.pth"],
+    )
     print(
         f"MINI_DEEPID_TRAIN_OK best_epoch={result['best_epoch']} "
         f"best_val_accuracy={result['best_val_accuracy']:.4f} run_dir={run_id}"

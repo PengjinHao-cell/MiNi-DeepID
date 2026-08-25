@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader
 
 from config import CONFIG
 from dataset import LFWManifestDataset, build_eval_transform, load_manifest
+from gate_status import record_gate
 from model import MiniDeepID
 from training import run_epoch, set_reproducible
 
@@ -113,6 +114,13 @@ def main() -> int:
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     _save_curve(history)
+
+    record_gate(
+        "G8",
+        "passed" if passed else "failed",
+        report,
+        ["outputs/tiny_overfit.json", "outputs/tiny_overfit_curve.png"],
+    )
 
     if passed:
         print(

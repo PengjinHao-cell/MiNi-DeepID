@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 
 from config import CONFIG
 from dataset import LFWManifestDataset, build_eval_transform, load_identities, load_manifest
+from gate_status import record_gate
 from model import MiniDeepID
 from training import load_checkpoint
 
@@ -218,6 +219,17 @@ def main() -> int:
         },
     }
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    record_gate(
+        "G12",
+        "passed",
+        {
+            "test_accuracy": metrics["accuracy"],
+            "macro_f1": metrics["macro_f1"],
+            "samples": n,
+        },
+        ["outputs/final_test_receipt.json", "outputs/metrics.json"],
+    )
 
     print(CLOSED_SET_WARNING)
     print(f"MINI_DEEPID_EVAL_OK samples={n}")

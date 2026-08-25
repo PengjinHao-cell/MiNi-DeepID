@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader
 
 from config import CONFIG
 from dataset import LFWManifestDataset, build_eval_transform, load_identities, load_manifest
+from gate_status import record_gate
 from model import MiniDeepID
 from training import load_checkpoint
 
@@ -103,6 +104,13 @@ def main() -> int:
     fig.tight_layout()
     fig.savefig(CONFIG.outputs_dir / "embeddings_pca.png", dpi=150)
     plt.close(fig)
+
+    record_gate(
+        "G13",
+        "passed",
+        {"pca": "fit=train transform=test", "samples": int(len(test_labels))},
+        ["outputs/embeddings_pca.png"],
+    )
 
     print(
         f"MINI_DEEPID_PCA_OK fit=train transform=test dimensions=160->2 samples={len(test_labels)}"

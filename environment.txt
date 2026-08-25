@@ -1,5 +1,5 @@
 Mini-DeepID environment report (Gate G2)
-timestamp=2026-08-25T07:02:00.950885+00:00
+timestamp=2026-08-25T07:34:39.639309+00:00
 random_seed=42
 device=cuda:0
 python=3.12.10

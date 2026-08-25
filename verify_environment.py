@@ -92,31 +92,16 @@ def run_matmul_check(device: str) -> dict:
 
 
 def run_model_check(device: str) -> dict:
-    import torch.nn as nn
     import torch.nn.functional as functional
 
-    class SmokeNet(nn.Module):
-        """Minimal 2-conv net used only to prove CUDA forward/backward."""
-
-        def __init__(self) -> None:
-            super().__init__()
-            self.conv1 = nn.Conv2d(1, 16, 3, padding=1)
-            self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
-            self.pool = nn.MaxPool2d(2)
-            self.fc = nn.Linear(32 * 16 * 16, 10)
-
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
-            x = self.pool(torch.relu(self.conv1(x)))
-            x = self.pool(torch.relu(self.conv2(x)))
-            x = x.flatten(1)
-            return self.fc(x)
+    from model import MiniDeepID
 
     torch.manual_seed(SEED)
-    model = SmokeNet().to(device)
+    model = MiniDeepID(num_classes=10).to(device)
     model.train()
     x = torch.randn(2, 1, 64, 64, device=device)
     y = torch.tensor([3, 7], device=device)
-    logits = model(x)
+    _, logits = model(x)
     loss = functional.cross_entropy(logits, y)
     loss.backward()
     grads_finite = all(

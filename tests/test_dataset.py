@@ -7,6 +7,7 @@ from dataset import (
     load_manifest,
     sample_and_split_indices,
     select_top_labels,
+    validate_exported_images,
     validate_manifest,
 )
 
@@ -126,3 +127,30 @@ def test_load_manifest_reads_frozen_split():
     assert train_idx.isdisjoint(val_idx)
     assert train_idx.isdisjoint(test_idx)
     assert val_idx.isdisjoint(test_idx)
+
+
+def test_validate_exported_images(tmp_path):
+    from PIL import Image
+
+    from config import CONFIG
+
+    img_dir = tmp_path / "data" / "processed" / "X"
+    img_dir.mkdir(parents=True)
+    Image.fromarray(np.zeros((64, 64), dtype=np.uint8), mode="L").save(img_dir / "1.png")
+
+    frame = pd.DataFrame([{"image_path": "data/processed/X/1.png"}])
+    assert validate_exported_images(CONFIG, frame, project_root=tmp_path) == 1
+
+    missing = pd.DataFrame([{"image_path": "data/processed/X/nope.png"}])
+    with pytest.raises(ValueError):
+        validate_exported_images(CONFIG, missing, project_root=tmp_path)
+
+    Image.fromarray(np.zeros((32, 32), dtype=np.uint8), mode="L").save(img_dir / "2.png")
+    wrong_size = pd.DataFrame([{"image_path": "data/processed/X/2.png"}])
+    with pytest.raises(ValueError):
+        validate_exported_images(CONFIG, wrong_size, project_root=tmp_path)
+
+    Image.fromarray(np.zeros((64, 64, 3), dtype=np.uint8), mode="RGB").save(img_dir / "3.png")
+    not_gray = pd.DataFrame([{"image_path": "data/processed/X/3.png"}])
+    with pytest.raises(ValueError):
+        validate_exported_images(CONFIG, not_gray, project_root=tmp_path)

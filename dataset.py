@@ -130,6 +130,65 @@ def load_manifest(config=CONFIG) -> pd.DataFrame:
     return frame
 
 
+def validate_exported_images(config, frame: pd.DataFrame, project_root=None) -> int:
+    """Verify every manifest row points to an existing 64x64 finite grayscale
+    (mode ``L``) uint8 PNG. Returns the number of images checked."""
+    from PIL import Image
+
+    root = Path(project_root) if project_root is not None else config.project_root
+    count = 0
+    for image_path in frame["image_path"]:
+        path = root / image_path
+        if not path.exists():
+            raise ValueError(f"missing image: {path}")
+        with Image.open(path) as image:
+            if image.mode != "L":
+                raise ValueError(f"not grayscale (mode={image.mode}): {path}")
+            if image.size != (config.image_size, config.image_size):
+                raise ValueError(f"wrong size {image.size}: {path}")
+            arr = np.asarray(image)
+            if arr.dtype != np.uint8:
+                raise ValueError(f"not uint8 (dtype={arr.dtype}): {path}")
+            if not np.isfinite(arr).all():
+                raise ValueError(f"non-finite pixel in {path}")
+        count += 1
+    return count
+
+
+def generate_sample_grid(config, frame: pd.DataFrame, samples_per_class: int = 5) -> Path:
+    """Generate a ten-identity sample grid PNG and return its path."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from PIL import Image
+
+    n_rows = config.num_classes
+    n_cols = samples_per_class
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(2 * n_cols, 2 * n_rows))
+    axes = np.atleast_2d(axes)
+    for rank in range(config.num_classes):
+        sub = frame[frame["model_label"] == rank].sort_values("source_index")
+        name = str(sub["identity_name"].iloc[0])
+        for col, (_, row) in enumerate(sub.head(samples_per_class).iterrows()):
+            path = config.project_root / row["image_path"]
+            arr = np.asarray(Image.open(path))
+            ax = axes[rank, col]
+            ax.imshow(arr, cmap="gray", vmin=0, vmax=255)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if col == 0:
+                ax.set_ylabel(name, fontsize=8)
+            if rank == 0:
+                ax.set_title(f"sample {col + 1}", fontsize=8)
+    fig.suptitle("LFW closed-set sample grid (10 identities)")
+    fig.tight_layout()
+    out_path = config.outputs_dir / "sample_grid.png"
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return out_path
+
+
 def sanitize_identity_name(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9]+", "_", name.strip())
     return cleaned.strip("_") or "unknown"

@@ -1,0 +1,24 @@
+Mini-DeepID environment report (Gate G2)
+timestamp=2026-08-25T07:02:00.950885+00:00
+random_seed=42
+device=cuda:0
+python=3.12.10
+python_executable=E:\Self Experiment\MINI DEEP ID\.venv\Scripts\python.exe
+torch=2.12.1+cu130
+torchvision=0.27.1+cu130
+numpy=2.5.2
+pandas=3.0.5
+pillow=12.3.0
+scikit_learn=1.9.0
+matplotlib=3.11.1
+seaborn=0.13.2
+cuda_available=True
+cuda_runtime=13.0
+cudnn_version=92000
+driver_version=610.88
+device_name=NVIDIA GeForce RTX 5060 Laptop GPU
+compute_capability=[12, 0]
+device_count=1
+matmul_2000x2000_passed=True
+model_forward_backward_passed=True
+model_gradients_finite=True

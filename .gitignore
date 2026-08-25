@@ -2,6 +2,7 @@
 __pycache__/
 .pytest_cache/
 *.py[cod]
+.idea/
 data/cache/
 data/processed/
 checkpoints/

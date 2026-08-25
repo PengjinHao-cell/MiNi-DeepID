@@ -69,4 +69,4 @@ def list_passed_gates(path=None) -> list[str]:
     for entry in data.get("gates", []):
         if entry["status"] == "passed" and entry["gate"] not in passed:
             passed.append(entry["gate"])
-    return sorted(passed)
+    return sorted(passed, key=lambda gate: int(gate[1:]))

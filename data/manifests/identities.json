@@ -1,0 +1,64 @@
+{
+  "identities": [
+    {
+      "model_label": 0,
+      "source_label": 14,
+      "identity_name": "George_W_Bush",
+      "display_name": "George W Bush"
+    },
+    {
+      "model_label": 1,
+      "source_label": 10,
+      "identity_name": "Colin_Powell",
+      "display_name": "Colin Powell"
+    },
+    {
+      "model_label": 2,
+      "source_label": 58,
+      "identity_name": "Tony_Blair",
+      "display_name": "Tony Blair"
+    },
+    {
+      "model_label": 3,
+      "source_label": 12,
+      "identity_name": "Donald_Rumsfeld",
+      "display_name": "Donald Rumsfeld"
+    },
+    {
+      "model_label": 4,
+      "source_label": 15,
+      "identity_name": "Gerhard_Schroeder",
+      "display_name": "Gerhard Schroeder"
+    },
+    {
+      "model_label": 5,
+      "source_label": 5,
+      "identity_name": "Ariel_Sharon",
+      "display_name": "Ariel Sharon"
+    },
+    {
+      "model_label": 6,
+      "source_label": 21,
+      "identity_name": "Hugo_Chavez",
+      "display_name": "Hugo Chavez"
+    },
+    {
+      "model_label": 7,
+      "source_label": 35,
+      "identity_name": "Junichiro_Koizumi",
+      "display_name": "Junichiro Koizumi"
+    },
+    {
+      "model_label": 8,
+      "source_label": 25,
+      "identity_name": "Jean_Chretien",
+      "display_name": "Jean Chretien"
+    },
+    {
+      "model_label": 9,
+      "source_label": 31,
+      "identity_name": "John_Ashcroft",
+      "display_name": "John Ashcroft"
+    }
+  ]
+}

@@ -1,112 +1,146 @@
-> **Mini-DeepID educational reproduction inspired by CVPR 2014 DeepID, not a reproduction of the paper's reported LFW 97.45% result.**
+# Mini-DeepID
 
-# Mini-DeepID 教学复现
+> **An educational reproduction inspired by _Deep Learning Face Representation from Predicting 10,000 Classes_ (CVPR 2014), not a reproduction of the paper's reported 97.45% LFW verification benchmark.**
 
-本项目是 LFW 10 人 closed-set identification 教学实验：从 LFW 自动选择照片最多的 10 个身份，每个身份固定 50 张灰度人脸（共 500 张），训练一个四层卷积网络，把 160 维隐藏层激活作为 DeepID 特征，做 10 类身份分类。它是 DeepID 的**思想级**教学复现，不是 CVPR 2014 DeepID 论文的完整复现，也不是论文报告的 LFW 97.45% verification benchmark 复现。
+[中文简介](#中文简介) · [Full Chinese Report](docs/Mini-DeepID完整实验报告.md) · [Wiki](../../wiki) · [Original Paper](https://openaccess.thecvf.com/content_cvpr_2014/html/Sun_Deep_Learning_Face_2014_CVPR_paper.html)
 
-## 项目性质
+Mini-DeepID is a small, reproducible face-representation experiment built on LFW. It preserves three ideas from DeepID—identity-classification supervision, a compact 160-dimensional embedding, and complementary multi-scale features—while reducing the experiment to 10 identities and one lightweight CNN that can be trained on a consumer GPU.
 
-- 10 个身份 × 50 张 = 500 张灰度 64×64 人脸（随机种子 42）。
-- Train / Val / Test = 350 / 70 / 80（每人 35 / 7 / 8）。
-- 输入 `1×64×64`；四层卷积；160D DeepID embedding；10 logits。
-- 训练设备 `cuda:0`；CUDA 失败立即停止，**绝不静默回退 CPU**。
+## Results at a glance
 
-本项目**不是**：陌生人识别系统、实际门禁或生产身份认证系统、论文 benchmark 复现。
+| Metric | Result |
+| --- | ---: |
+| Dataset | LFW, 10 identities × 50 images |
+| Frozen split | 350 train / 70 validation / 80 test |
+| Random-guess accuracy | 10.00% |
+| Best validation accuracy | 80.00% at epoch 75 |
+| Final test accuracy | **77.50% (62/80)** |
+| Macro Precision / Recall / F1 | 0.7927 / 0.7750 / **0.7758** |
+| Embedding dimension | 160 |
 
-## 环境
+![Confusion matrix](docs/assets/confusion_matrix.png)
 
-- Python 3.12；基解释器 `C:\Users\pengjian\AppData\Local\Programs\Python\Python312\python.exe`。
-- 项目专属解释器：`E:\Self Experiment\MINI DEEP ID\.venv\Scripts\python.exe`（不复用其他项目环境）。
-- 依赖（`requirements.txt`，锁定见 `requirements-lock.txt`）：torch 2.12.1 / torchvision 0.27.1（CUDA 13.0 wheel）、numpy、pandas、Pillow、scikit-learn、matplotlib、seaborn、tqdm、pytest。
-- GPU：NVIDIA GeForce RTX 5060 Laptop GPU（驱动 610.88、计算能力 12.0、显存 8151 MiB）。
+This is a **10-class closed-set identification** result. The model cannot reject an unknown identity and must not be interpreted as an access-control or production face-recognition system.
 
-### 从空环境重现
+## Method
 
-```powershell
-# 1. 创建专属虚拟环境
-& 'C:\Users\pengjian\AppData\Local\Programs\Python\Python312\python.exe' -m venv '.venv'
-
-# 2. 安装依赖（官方 cu130 wheel）
-& '.\.venv\Scripts\python.exe' -m pip install --upgrade pip
-& '.\.venv\Scripts\python.exe' -m pip install -r requirements.txt
-
-# 3. 真实 CUDA 验证（GPU 名称 / runtime / 计算能力 / 2000x2000 matmul / 模型前向+反向+有限梯度）
-& '.\.venv\Scripts\python.exe' verify_environment.py
-
-# 4. 下载 LFW 并生成冻结数据（若大档案下载停滞，可用 curl 续传 lfw-funneled.tgz）
-& '.\.venv\Scripts\python.exe' prepare_lfw.py
-
-# 5. 数据验收（无重叠、标签、图像规格、样本网格）
-& '.\.venv\Scripts\python.exe' verify_data.py
-
-# 6. 单元测试
-& '.\.venv\Scripts\python.exe' -m pytest -q
-
-# 7. 32 张 Tiny Overfit（必须 >=95%，目标 100%）
-& '.\.venv\Scripts\python.exe' tiny_overfit.py
-
-# 8. 两轮冒烟训练（checkpoint 保存与 resume）
-& '.\.venv\Scripts\python.exe' train.py --epochs 2
-
-# 9. 正式训练（<=80 epochs，由用户在 PyCharm 亲手启动）
-#    在 PyCharm 中选择 .venv 解释器，打开 run_in_pycharm.py，点击绿色 Run。
-
-# 10. 一次性 Final Test（冻结测试集 80 张，仅一次）
-& '.\.venv\Scripts\python.exe' evaluate.py
-
-# 11. PCA 可视化（只在 train embeddings 上 fit，test 只 transform）
-& '.\.venv\Scripts\python.exe' visualize_embeddings.py
+```mermaid
+flowchart LR
+    A[LFW funneled] --> B[Top 10 identities]
+    B --> C[50 images each]
+    C --> D[Frozen 350/70/80 split]
+    D --> E[4-layer CNN]
+    E --> F[Conv3 + Conv4 fusion]
+    F --> G[160D embedding]
+    G --> H[10-class softmax]
+    H --> I[One-shot final test]
 ```
 
-## 冻结数据协议
+The input is a grayscale `1×64×64` face. Four convolution blocks produce local-to-global features. Pooled Conv3 and Conv4 maps are concatenated, projected into a 160D embedding, and classified into one of ten known identities.
 
-`data/manifests/split_manifest.csv` 一旦生成即视为**冻结**实验协议。此后的 dataset、训练、验证、测试、预测、可视化**只能读取该清单**，禁止 `random_split` 或重新随机划分。Val/Test 只允许 resize、tensor 转换与 normalize，禁止任何随机增强；随机增强仅对 Train 动态执行。三分区 source_index 互斥。
+$$
+\mathbf{z}=f_\theta(x)\in\mathbb{R}^{160},\qquad
+p(y=k\mid x)=\frac{\exp(o_k)}{\sum_{j=1}^{10}\exp(o_j)}.
+$$
 
-## 预期成功标记
+Random augmentation is applied only to training data. Validation and test transforms are deterministic.
 
-- `MINI_DEEPID_CUDA_SMOKE_OK device=cuda:0`
-- `LFW_PREPARE_OK classes=10 samples=500 train=350 val=70 test=80`
-- `MINI_DEEPID_DATA_ACCEPT_OK classes=10 samples=500 images=500`
-- `MINI_DEEPID_TINY_OVERFIT_OK ...`
-- `MINI_DEEPID_TRAIN_OK ...`
-- `MINI_DEEPID_EVAL_OK samples=80`
-- `MINI_DEEPID_PCA_OK fit=train transform=test dimensions=160->2 samples=80`
+## Experimental discipline
 
-## 实测结果
+The project uses gated validation from G0 to G14:
 
-| 指标 | 值 |
-| --- | --- |
-| Random Guess Accuracy | 10.00% |
-| Mini-DeepID Test Accuracy | 77.50%（62/80） |
-| 最佳验证准确率（epoch 75） | 80.00% |
-| Macro Precision / Recall / F1 | 0.7927 / 0.7750 / 0.7758 |
+- fixed seed and immutable `split_manifest.csv`;
+- real CUDA matrix multiplication and forward/backward checks;
+- model-shape and finite-gradient tests;
+- a 32-image tiny-set overfit test reaching 100%;
+- checkpoint save/resume smoke training;
+- validation-only checkpoint selection;
+- one final test protected by `final_test_receipt.json`;
+- PCA fitted on train embeddings and only transformed on test embeddings.
 
-## 输出位置
+![Training accuracy](docs/assets/accuracy_curve.png)
 
-- 冻结清单/身份映射：`data/manifests/`（`split_manifest.csv`、`identities.json`）
-- 导出灰度图：`data/processed/`
-- 最佳检查点：`checkpoints/mini_deepid_best.pth`
-- 报告/图件：`outputs/`（`metrics.json`、`confusion_matrix.png`、`predictions.png`、`embeddings_pca.png`、`final_test_receipt.json`、`data_summary.json`、`tiny_overfit.json`、`tiny_overfit_curve.png`、`environment_report.json`）
-- 训练曲线：`outputs/<run_id>/loss_curve.png`、`accuracy_curve.png`
-- Gate 台账：`outputs/gate_status.json`
+![160D embedding PCA](docs/assets/embeddings_pca.png)
 
-## 已知故障模式
+## Quick start
 
-- CUDA 不可用 → `verify_environment.py` / 训练立即报错，绝不静默回退 CPU。
-- LFW 大档案下载停滞 → 用 `curl -L -C - --retry ...` 续传官方 `lfw-funneled.tgz` 到 `data/cache/lfw_home/`（SHA256 校验后重跑 `prepare_lfw.py`）。
-- loss 非有限 → `run_epoch` 抛错停止。
-- checkpoint 身份映射不符 → `load_checkpoint` 抛 `ValueError`。
-- `final_test_receipt.json` 已存在 → `evaluate.py` 拒绝二次 Final Test。
+### Requirements
 
-## DeepID 与 Mini-DeepID 的区别
+- Python 3.12
+- NVIDIA CUDA-capable GPU
+- Validated environment: PyTorch 2.12.1 + CUDA 13.0 on RTX 5060 Laptop GPU
 
-| | 原论文 DeepID | Mini-DeepID |
+```powershell
+python -m venv .venv
+& '.\.venv\Scripts\python.exe' -m pip install --upgrade pip
+& '.\.venv\Scripts\python.exe' -m pip install -r requirements.txt
+```
+
+### Reproduce the pipeline
+
+```powershell
+& '.\.venv\Scripts\python.exe' verify_environment.py
+& '.\.venv\Scripts\python.exe' prepare_lfw.py
+& '.\.venv\Scripts\python.exe' verify_data.py
+& '.\.venv\Scripts\python.exe' -m pytest -q
+& '.\.venv\Scripts\python.exe' tiny_overfit.py
+& '.\.venv\Scripts\python.exe' train.py --epochs 2
+```
+
+Formal training is launched by the user from `run_in_pycharm.py`. After the protocol is frozen, `evaluate.py` performs the one-shot final test and refuses to run again when a receipt exists.
+
+See the [full Chinese experiment report](docs/Mini-DeepID完整实验报告.md) or [Wiki](../../wiki) for equations, class-wise metrics, limitations, and improvement plans.
+
+## DeepID versus Mini-DeepID
+
+| | Original DeepID | Mini-DeepID |
 | --- | --- | --- |
-| 规模 | 约 10,000 身份 | 10 身份 |
-| 结构 | 多 face patch、多 ConvNet 集成 | 单四层卷积 + 多尺度融合 |
-| 度量 | Joint Bayesian + LFW verification（97.45%） | closed-set identification |
-| 特征 | 160D DeepID | 160D DeepID |
+| Scale | about 10,000 identities | 10 LFW identities |
+| Architecture | multiple face patches and ConvNets | one four-layer CNN with multi-scale fusion |
+| Representation | 160D DeepID | 160D Mini-DeepID |
+| Evaluation | LFW verification + Joint Bayesian | closed-set identification |
+| Reported number | 97.45% verification | 77.50% identification |
 
-## 闭集限制
+The numbers are not directly comparable because the training data, task, model ensemble, and evaluation protocol differ.
 
-预测属于闭集分类，输入必须属于既定的 10 个身份之一。Softmax confidence **不代表**可靠的陌生人检测概率；本项目不提供 `UNKNOWN`，不用于实际门禁、身份认证或其他高风险场景。
+## Repository map
+
+```text
+Mini-DeepID/
+├── data/manifests/       # frozen split and identity mapping
+├── docs/                 # plans, paper, report, and GitHub assets
+├── tests/                # model, data, training, and protocol tests
+├── wiki/                 # version-controlled Wiki sources
+├── model.py              # Mini-DeepID network
+├── dataset.py            # manifest-driven data pipeline
+├── run_in_pycharm.py     # formal training launcher
+├── evaluate.py           # protected one-shot evaluation
+└── visualize_embeddings.py
+```
+
+Datasets, checkpoints, outputs, and virtual environments are excluded from Git. Running the pipeline regenerates local artifacts.
+
+## Citation
+
+```bibtex
+@InProceedings{Sun_2014_CVPR,
+  author    = {Sun, Yi and Wang, Xiaogang and Tang, Xiaoou},
+  title     = {Deep Learning Face Representation from Predicting 10,000 Classes},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
+  year      = {2014}
+}
+```
+
+## 中文简介
+
+Mini-DeepID 是一个在消费级 GPU 上完成的 DeepID 思想级教学复现。项目从 LFW 自动选择照片最多的 10 个身份，每人固定 50 张，使用不可变清单划分为 350 张训练、70 张验证和 80 张测试图像。模型采用四层卷积、Conv3/Conv4 多尺度融合、160 维特征层和十分类器，最终测试准确率为 **77.50%（62/80）**，Macro F1 为 **0.7758**。
+
+项目重点是完整经历“论文思想 → 数据协议 → 模型实现 → 健康检查 → 正式训练 → 一次性测试 → 结果分析”的过程。它不是原论文系统的完整复现，也不支持陌生人拒识。详细说明见[完整中文实验报告](docs/Mini-DeepID完整实验报告.md)。
+
+## Ethics and intended use
+
+This repository is for education and research only. It does not implement unknown-person rejection and must not be deployed for surveillance, access control, identity authentication, or other high-risk decisions.
+
+## License note
+
+The code is provided as an educational project. LFW images and the archived paper remain subject to their original terms and licenses.

@@ -7,3 +7,4 @@ data/cache/
 data/processed/
 checkpoints/
 outputs/
+dist/

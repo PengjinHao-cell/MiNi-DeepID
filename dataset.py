@@ -133,6 +133,13 @@ def load_manifest(config=CONFIG) -> pd.DataFrame:
     return frame
 
 
+def load_identities(config=CONFIG) -> list[str]:
+    """Return identity names in model-label order (checkpoint identity mapping)."""
+    data = json.loads(config.identities_path.read_text(encoding="utf-8"))
+    entries = sorted(data["identities"], key=lambda entry: int(entry["model_label"]))
+    return [str(entry["identity_name"]) for entry in entries]
+
+
 def validate_exported_images(config, frame: pd.DataFrame, project_root=None) -> int:
     """Verify every manifest row points to an existing 64x64 finite grayscale
     (mode ``L``) uint8 PNG. Returns the number of images checked."""

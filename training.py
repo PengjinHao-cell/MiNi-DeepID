@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import random
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -57,3 +59,38 @@ def run_epoch(model, loader, criterion, device, optimizer=None):
     if total_samples == 0:
         raise RuntimeError("empty data loader")
     return total_loss / total_samples, total_correct / total_samples
+
+
+def save_checkpoint_atomic(path, payload) -> None:
+    """Write a sibling ``.tmp`` file and atomically ``replace`` the target."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    torch.save(payload, tmp)
+    tmp.replace(path)
+
+
+def load_checkpoint(path, model, optimizer=None, expected_identities=None):
+    """Load a checkpoint, optionally verify the identity mapping, and restore
+    model/optimizer state with strict loading."""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"checkpoint not found: {path}")
+    payload = torch.load(path, map_location="cpu")
+    if expected_identities is not None:
+        stored = payload.get("identities")
+        if stored != expected_identities:
+            raise ValueError("checkpoint identity mapping mismatch")
+    model.load_state_dict(payload["model_state"])
+    if optimizer is not None and payload.get("optimizer_state") is not None:
+        optimizer.load_state_dict(payload["optimizer_state"])
+    return payload
+
+
+def write_history_json(history, path) -> None:
+    """Write one JSON record per epoch, atomically."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)

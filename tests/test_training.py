@@ -1,10 +1,12 @@
 import numpy as np
+import pytest
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 from model import MiniDeepID
-from training import run_epoch, set_reproducible
+from training import load_checkpoint, run_epoch, save_checkpoint_atomic, set_reproducible
 
 
 def _make_loader(n: int = 32, batch_size: int = 16, seed: int = 42):
@@ -52,3 +54,53 @@ def test_run_epoch_eval_leaves_params_unchanged():
     assert 0.0 <= acc <= 1.0
     unchanged = all(torch.equal(before[name], p) for name, p in model.named_parameters())
     assert unchanged
+
+
+def _identities() -> list[str]:
+    return ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+
+
+def test_checkpoint_round_trip(tmp_path):
+    model = MiniDeepID(num_classes=10).to("cpu")
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    _, logits = model(torch.randn(2, 1, 64, 64))
+    F.cross_entropy(logits, torch.tensor([1, 2])).backward()
+    optimizer.step()
+
+    identities = _identities()
+    payload = {
+        "model_state": model.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
+        "epoch": 1,
+        "best_val_accuracy": 0.5,
+        "identities": identities,
+        "seed": 42,
+    }
+    path = tmp_path / "ckpt.pth"
+    save_checkpoint_atomic(path, payload)
+
+    reloaded = MiniDeepID(num_classes=10).to("cpu")
+    reloaded_opt = torch.optim.AdamW(reloaded.parameters(), lr=1e-3)
+    loaded = load_checkpoint(path, reloaded, optimizer=reloaded_opt, expected_identities=identities)
+    assert loaded["epoch"] == 1
+    assert loaded["identities"] == identities
+
+    model.eval()
+    reloaded.eval()
+    x = torch.randn(2, 1, 64, 64)
+    with torch.no_grad():
+        _, logits_a = model(x)
+        _, logits_b = reloaded(x)
+    assert torch.equal(logits_a, logits_b)
+
+
+def test_checkpoint_identity_mismatch_raises(tmp_path):
+    model = MiniDeepID(num_classes=10).to("cpu")
+    payload = {"model_state": model.state_dict(), "identities": _identities()}
+    path = tmp_path / "ckpt.pth"
+    save_checkpoint_atomic(path, payload)
+
+    other = MiniDeepID(num_classes=10).to("cpu")
+    wrong = ["A"] * 10
+    with pytest.raises(ValueError):
+        load_checkpoint(path, other, expected_identities=wrong)
